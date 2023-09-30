@@ -22,7 +22,7 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
       session: %{"network" => @network}
     ) %>
     <div class="flex flex-col gap-1 justify-center items-center my-16">
-      <h1>Stark Compass</h1>
+      <h1>Barknet Explorer</h1>
       <div class="uppercase rounded-lg px-2 py-1 text-center blue-label text-xl font-medium mt-2">
         The only open source explorer for Starknet
       </div>

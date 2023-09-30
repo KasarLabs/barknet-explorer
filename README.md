@@ -1,4 +1,5 @@
 # StarkCompass
+
 ![image](./priv/static/images/explorer_preview.png)
 
 - [StarkCompass](#starkcompass)
@@ -18,6 +19,7 @@
     - [Get in Touch](#get-in-touch)
 
 ## Requirements
+
 - SQLite
 - Erlang 25
 - Elixir 1.15, compiled with OTP 25
@@ -26,9 +28,10 @@
 
 ## Local development
 
-If you run `make` it will print out the available targets: 
+If you run `make` it will print out the available targets:
+
 ```
-% make            
+% make
 Usage:
     run   : Starts the Elixir backend server.
     setup : Sets up everything necessary to build and run the explorer.
@@ -37,7 +40,8 @@ Usage:
 ```
 
 ### Setup
-Once you have the requirements installed and set up, you can proceed to building and running the project. 
+
+Once you have the requirements installed and set up, you can proceed to building and running the project.
 
 ```bash
 make setup
@@ -45,7 +49,7 @@ make setup
 
 ### RPC Provider
 
-You now have the choice of connecting the explorer to an RPC API provider of your choice, e.g. Infura with an API key, or by running your own Juno node. 
+You now have the choice of connecting the explorer to an RPC API provider of your choice, e.g. Infura with an API key, or by running your own Juno node.
 
 To run it locally, you'll need to set the RPC API url of the network. If you're using a provider like Infura, this will look something like this: `https://starknet-mainnet.infura.io/v3/your_api_key`
 
@@ -54,14 +58,13 @@ Set the following environment variables:
 ```bash
 export RPC_API_HOST=your_rpc_hostname
 export TESTNET_RPC_API_HOST=testnet_rpc_hostname
-export TESTNET_2_RPC_API_HOST=testnet_2_rpc_hostname
 ```
 
 Some of the desired data related to Starknet is not currently available through the RPC standard. Because of this, the explorer also gets information through the feeder gateway API. In order to enable this functionality, the variable `ENABLE_GATEWAY_DATA` needs to be set to `true` (if nothing is set, it will default to `false`). Note that this is only pertinent to the Starknet networks and not other particular networks that are compatible with the RPC standard.
 
 ```bash
 export ENABLE_GATEWAY_DATA=true
-``````
+```
 
 ### RPC with Juno
 
@@ -74,6 +77,7 @@ work, set with the env variable `$ETH_NODE_URL`, mind you
 it must be a websocket url.
 
 ### Up and running
+
 If you're on MacOS, you already have SQLite.
 On Linux, your distro's repo will most certainly have a package for it.
 With a working RPC set and sqlite installed, start the explorer with
@@ -89,6 +93,7 @@ From now on, if you want to restart the app, you can just do:
 ```bash
 make run
 ```
+
 ## State Synchronization System
 
 The State Synchronization System facilitates the population of the database with data obtained through RPC. This system is accompanied by a utility tool known as the StateSyncSystem, which serves three fundamental tasks:
@@ -104,7 +109,6 @@ To activate this synchronization process, you can configure the following enviro
 ```bash
 export ENABLE_MAINNET_SYNC=true
 export ENABLE_TESTNET_SYNC=true
-export ENABLE_TESTNET2_SYNC=true
 ```
 
 It's worth noting that you have the flexibility to select which networks you want to synchronize by adjusting these environment variables.
@@ -112,12 +116,13 @@ It's worth noting that you have the flexibility to select which networks you wan
 ### WARNING ⚠️
 
 There are 3 things to keep in mind here:
+
 1. Amount of requests:
    If you have any constraint on how many requests you can make: keep an eye on that,
    because the State Synchronization System can do a lot of requests per second.
-2. Disk Usage: We're still measuring it, but we expect it to be considerable 
+2. Disk Usage: We're still measuring it, but we expect it to be considerable
    after running it for a couple of days.
-3. If you are going to sync a large amount of blocks, we *strongly* suggest to use PostgreSQL instead of SQLite. You can check how to swap the DB in [this section](#using-stark-compass-with-postgresql).
+3. If you are going to sync a large amount of blocks, we _strongly_ suggest to use PostgreSQL instead of SQLite. You can check how to swap the DB in [this section](#using-stark-compass-with-postgresql).
 
 The db file will be stored under `/priv/repo`.
 
@@ -164,7 +169,7 @@ docker-compose up postgres
 
 ## Contributing
 
-We appreciate your interest in contributing to the Stark Compass Explorer! Your contributions can help make this project even better. 
+We appreciate your interest in contributing to the Stark Compass Explorer! Your contributions can help make this project even better.
 
 PRs are more than welcome if you want to collaborate to the project. If you don't know how to implement a feature, you are still welcome to create an issue!
 

@@ -7,111 +7,106 @@
   become_user: starknet_explorer
 
   pre_tasks:
+    - name: Delete tmp repo
+      file:
+        state: absent
+        path: /home/starknet_explorer/tmp/madara_explorer
 
-  - name: Delete tmp repo
-    file:
-      state: absent
-      path: /home/starknet_explorer/tmp/madara_explorer
+    - name: Clone repo in tmp dir
+      ansible.builtin.git:
+        repo: git@github.com:lambdaclass/madara_explorer.git
+        version: "{{ lookup('ansible.builtin.env', 'GIT_BRANCH') }}"
+        dest: /home/starknet_explorer/tmp/madara_explorer
+        ssh_opts: "-o StrictHostKeyChecking=no"
+        key_file: /home/starknet_explorer/.ssh/id_ed25519
+      register: clone_output
 
-  - name: Clone repo in tmp dir
-    ansible.builtin.git:
-      repo: git@github.com:lambdaclass/madara_explorer.git
-      version: "{{ lookup('ansible.builtin.env', 'GIT_BRANCH') }}"
-      dest: /home/starknet_explorer/tmp/madara_explorer
-      ssh_opts: "-o StrictHostKeyChecking=no"
-      key_file: /home/starknet_explorer/.ssh/id_ed25519
-    register: clone_output
+    - name: Print clone repo output
+      debug: msg="{{ clone_output }}"
 
-  - name: Print clone repo output
-    debug: msg="{{ clone_output }}"
+    - name: Build
+      ansible.builtin.shell: |
+        set -ex
+        export PATH=${PATH}:/home/starknet_explorer/.cargo/bin
+        mix local.hex --force
+        mix local.rebar --force
+        mix deps.get --only $MIX_ENV
+        mix deps.compile
+        mix assets.deploy
+        mix ecto.setup
+        mix phx.digest
+        mix compile
+        mix release
+        mix phx.gen.release
+      environment:
+        MIX_ENV: prod
+        RPC_API_HOST: "{{ lookup('ansible.builtin.env', 'RPC_API_HOST') }}"
+        TESTNET_RPC_API_HOST: "{{ lookup('ansible.builtin.env', 'TESTNET_RPC_API_HOST') }}"
+        DB_TYPE: "{{ lookup('ansible.builtin.env', 'DB_TYPE') }}"
+        DATABASE_URL: "{{ lookup('ansible.builtin.env', 'DATABASE_URL') }}"
+        NEWRELIC_KEY:
+        NEWRELIC_APP_NAME:
+        SECRET_KEY_BASE: "{{ lookup('ansible.builtin.env', 'SECRET_KEY_BASE') }}"
+        PORT: "4100"
+        SENTRY_ENV: "{{ lookup('ansible.builtin.env', 'SENTRY_ENV') }}"
+        SENTRY_DSN: "{{ lookup('ansible.builtin.env', 'SENTRY_DSN') }}"
+        ENABLE_MAINNET_SYNC: "{{ lookup('ansible.builtin.env', 'ENABLE_MAINNET_SYNC') }}"
+        ENABLE_TESTNET_SYNC: "{{ lookup('ansible.builtin.env', 'ENABLE_TESTNET_SYNC') }}"
+        ENABLE_GATEWAY_DATA: "{{ lookup('ansible.builtin.env', 'ENABLE_GATEWAY_DATA') }}"
+      args:
+        chdir: /home/starknet_explorer/tmp/madara_explorer
+      register: build_output
 
-  - name: Build
-    ansible.builtin.shell: |
-      set -ex
-      export PATH=${PATH}:/home/starknet_explorer/.cargo/bin
-      mix local.hex --force
-      mix local.rebar --force
-      mix deps.get --only $MIX_ENV
-      mix deps.compile
-      mix assets.deploy
-      mix ecto.setup
-      mix phx.digest
-      mix compile
-      mix release
-      mix phx.gen.release
-    environment:
-      MIX_ENV: prod
-      RPC_API_HOST: "{{ lookup('ansible.builtin.env', 'RPC_API_HOST') }}"
-      TESTNET_RPC_API_HOST: "{{ lookup('ansible.builtin.env', 'TESTNET_RPC_API_HOST') }}"
-      TESTNET_2_RPC_API_HOST: "{{ lookup('ansible.builtin.env', 'TESTNET_2_RPC_API_HOST') }}"
-      DB_TYPE: "{{ lookup('ansible.builtin.env', 'DB_TYPE') }}"
-      DATABASE_URL: "{{ lookup('ansible.builtin.env', 'DATABASE_URL') }}"
-      NEWRELIC_KEY:
-      NEWRELIC_APP_NAME:
-      SECRET_KEY_BASE: "{{ lookup('ansible.builtin.env', 'SECRET_KEY_BASE') }}"
-      PORT: "4100"
-      SENTRY_ENV: "{{ lookup('ansible.builtin.env', 'SENTRY_ENV') }}"
-      SENTRY_DSN: "{{ lookup('ansible.builtin.env', 'SENTRY_DSN') }}"
-      ENABLE_MAINNET_SYNC: "{{ lookup('ansible.builtin.env', 'ENABLE_MAINNET_SYNC') }}"
-      ENABLE_TESTNET_SYNC: "{{ lookup('ansible.builtin.env', 'ENABLE_TESTNET_SYNC') }}"
-      ENABLE_TESTNET2_SYNC: "{{ lookup('ansible.builtin.env', 'ENABLE_TESTNET2_SYNC') }}"
-      ENABLE_GATEWAY_DATA: "{{ lookup('ansible.builtin.env', 'ENABLE_GATEWAY_DATA') }}"
-    args:
-      chdir: /home/starknet_explorer/tmp/madara_explorer
-    register: build_output
+    - debug: msg="{{ build_output.stdout_lines + [ build_output.stderr_lines ] }}"
 
-  - debug: msg="{{ build_output.stdout_lines + [ build_output.stderr_lines ] }}"
+    - name: Delete old repo
+      ansible.builtin.file:
+        state: absent
+        path: /home/starknet_explorer/madara_explorer
 
-  - name: Delete old repo
-    ansible.builtin.file:
-      state: absent
-      path: /home/starknet_explorer/madara_explorer
+    - name: Copy repo from tmp dir
+      ansible.builtin.copy:
+        remote_src: true
+        src: /home/starknet_explorer/tmp/madara_explorer
+        dest: /home/starknet_explorer/
 
-  - name: Copy repo from tmp dir
-    ansible.builtin.copy:
-      remote_src: true
-      src: /home/starknet_explorer/tmp/madara_explorer
-      dest: /home/starknet_explorer/
+    - name: Create .env file
+      ansible.builtin.template:
+        src: .env.j2
+        dest: /home/starknet_explorer/.env
+      vars:
+        phx_host: "{{ lookup('ansible.builtin.env', 'PHX_HOST') }}"
+        secret_key_base: "{{ lookup('ansible.builtin.env', 'SECRET_KEY_BASE') }}"
+        db_type: "{{ lookup('ansible.builtin.env', 'DB_TYPE') }}"
+        database_url: "{{ lookup('ansible.builtin.env', 'DATABASE_URL') }}"
+        rpc_api_host: "{{ lookup('ansible.builtin.env', 'RPC_API_HOST') }}"
+        testnet_rpc_api_host: "{{ lookup('ansible.builtin.env', 'TESTNET_RPC_API_HOST') }}"
+        aws_access_key_id: "{{ lookup('ansible.builtin.env', 'AWS_ACCESS_KEY_ID') }}"
+        aws_secret_access_key: "{{ lookup('ansible.builtin.env', 'AWS_SECRET_ACCESS_KEY') }}"
+        aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+        prover_storage: "{{ lookup('ansible.builtin.env', 'PROVER_STORAGE') }}"
+        newrelic_key: "{{ lookup('ansible.builtin.env', 'NEWRELIC_KEY') }}"
+        newrelic_app_name: "{{ lookup('ansible.builtin.env', 'NEWRELIC_APP_NAME') }}"
+        sentry_env: "{{ lookup('ansible.builtin.env', 'SENTRY_ENV') }}"
+        sentry_dsn: "{{ lookup('ansible.builtin.env', 'SENTRY_DSN') }}"
+        enable_mainnet_sync: "{{ lookup('ansible.builtin.env', 'ENABLE_MAINNET_SYNC') }}"
+        enable_testnet_sync: "{{ lookup('ansible.builtin.env', 'ENABLE_TESTNET_SYNC') }}"
+        enable_gateway_data: "{{ lookup('ansible.builtin.env', 'ENABLE_GATEWAY_DATA') }}"
 
-  - name: Create .env file
-    ansible.builtin.template:
-      src: .env.j2
-      dest: /home/starknet_explorer/.env
-    vars:
-      phx_host: "{{ lookup('ansible.builtin.env', 'PHX_HOST') }}"
-      secret_key_base: "{{ lookup('ansible.builtin.env', 'SECRET_KEY_BASE') }}"
-      db_type: "{{ lookup('ansible.builtin.env', 'DB_TYPE') }}"
-      database_url: "{{ lookup('ansible.builtin.env', 'DATABASE_URL') }}"
-      rpc_api_host: "{{ lookup('ansible.builtin.env', 'RPC_API_HOST') }}"
-      testnet_rpc_api_host: "{{ lookup('ansible.builtin.env', 'TESTNET_RPC_API_HOST') }}"
-      testnet_2_rpc_api_host: "{{ lookup('ansible.builtin.env', 'TESTNET_2_RPC_API_HOST') }}"
-      aws_access_key_id: "{{ lookup('ansible.builtin.env', 'AWS_ACCESS_KEY_ID') }}"
-      aws_secret_access_key: "{{ lookup('ansible.builtin.env', 'AWS_SECRET_ACCESS_KEY') }}"
-      aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
-      prover_storage: "{{ lookup('ansible.builtin.env', 'PROVER_STORAGE') }}"
-      newrelic_key: "{{ lookup('ansible.builtin.env', 'NEWRELIC_KEY') }}"
-      newrelic_app_name: "{{ lookup('ansible.builtin.env', 'NEWRELIC_APP_NAME') }}"
-      sentry_env: "{{ lookup('ansible.builtin.env', 'SENTRY_ENV') }}"
-      sentry_dsn: "{{ lookup('ansible.builtin.env', 'SENTRY_DSN') }}"
-      enable_mainnet_sync: "{{ lookup('ansible.builtin.env', 'ENABLE_MAINNET_SYNC') }}"
-      enable_testnet_sync: "{{ lookup('ansible.builtin.env', 'ENABLE_TESTNET_SYNC') }}"
-      enable_testnet2_sync: "{{ lookup('ansible.builtin.env', 'ENABLE_TESTNET2_SYNC') }}"
-      enable_gateway_data: "{{ lookup('ansible.builtin.env', 'ENABLE_GATEWAY_DATA') }}"
+    - name: Create user systemd directory
+      ansible.builtin.file:
+        state: directory
+        path: /home/starknet_explorer/.config/systemd/user
 
-  - name: Create user systemd directory
-    ansible.builtin.file:
-      state: directory
-      path: /home/starknet_explorer/.config/systemd/user
+    - name: Install systemd service
+      ansible.builtin.template:
+        src: starknet_explorer.service.j2
+        dest: /home/starknet_explorer/.config/systemd/user/starknet_explorer.service
 
-  - name: Install systemd service
-    ansible.builtin.template:
-      src: starknet_explorer.service.j2
-      dest: /home/starknet_explorer/.config/systemd/user/starknet_explorer.service
-
-  - name: Restart starknet_explorer service
-    ansible.builtin.systemd:
-      scope: user
-      state: restarted
-      daemon_reload: true
-      enabled: true
-      name: starknet_explorer
+    - name: Restart starknet_explorer service
+      ansible.builtin.systemd:
+        scope: user
+        state: restarted
+        daemon_reload: true
+        enabled: true
+        name: starknet_explorer
