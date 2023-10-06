@@ -22,15 +22,17 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
       session: %{"network" => @network}
     ) %>
     <div class="flex flex-col gap-1 justify-center items-center my-16">
-      <h1>Barknet Explorer</h1>
-      <div class="uppercase rounded-lg px-2 py-1 text-center blue-label text-xl font-medium mt-2">
-        The only open source explorer for Starknet
+      <h1>Barkscan</h1>
+      <div class="uppercase rounded-lg px-2 py-1 text-center orange-label text-xl font-medium mt-2">
+        Explore Bitcoin's future
       </div>
     </div>
     <div class="mx-auto max-w-7xl mt-4 mb-5">
       <div class="flex justify-between">
-        <div class="relative inline-flex items-start gap-3 bg-container p-3 pr-4 text-sm mb-6">
-          <img src={~p"/images/zap.svg"} class="my-auto" />
+        <div class="relative inline-flex items-start gap-3 bg-container p-3 pr-4 text-sm mb-6 ">
+          <div class="text-bitcoin">
+            <img src={~p"/images/zap.svg"} class="my-auto" />
+          </div>
           <div class="flex">
             <div class="flex items-center gap-2 border-r border-r-gray-700 pr-2 mr-2">
               TPS
@@ -49,19 +51,14 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
           </div>
         </div>
         <div>
-          <a href="https://github.com/lambdaclass/stark_compass_explorer">
+          <a href="https://github.com/KasarLabs/barkscan">
             <div class="inline-flex items-start gap-3 bg-container hover:bg-[#272737] transition-all duration-300 p-3 pr-4 text-sm mb-6">
               <img src={~p"/images/github.svg"} class="my-auto" />
             </div>
           </a>
-          <a href="https://twitter.com/LambdaStarknet">
+          <a href="https://twitter.com/KasarLabs">
             <div class="inline-flex items-start gap-3 bg-container hover:bg-[#272737] transition-all duration-300 p-3 pr-4 text-sm mb-6">
               <img src={~p"/images/twitter.svg"} class="my-auto" />
-            </div>
-          </a>
-          <a href="https://t.me/LambdaStarkNet">
-            <div class="inline-flex items-start gap-3 bg-container hover:bg-[#272737] transition-all duration-300 p-3 pr-4 text-sm mb-6">
-              <img src={~p"/images/telegram.svg"} class="my-auto" />
             </div>
           </a>
         </div>

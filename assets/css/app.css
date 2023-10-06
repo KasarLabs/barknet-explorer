@@ -156,7 +156,7 @@ input {
 .approval,
 .mint,
 .sync {
-  @apply text-se-orange bg-se-orange/5 border-se-orange;
+  @apply text-bitcoin bg-se-orange/5 border-bitcoin;
 }
 .blue-label,
 .accepted_on_l2 {
@@ -230,15 +230,19 @@ main .option {
   @apply bg-brand text-white;
 }
 
-.tippy-box[data-theme~="starknet-explorer"][data-placement^="top"] > .tippy-arrow::before {
+.tippy-box[data-theme~="starknet-explorer"][data-placement^="top"]
+  > .tippy-arrow::before {
   @apply border-t-brand;
 }
-.tippy-box[data-theme~="starknet-explorer"][data-placement^="bottom"] > .tippy-arrow::before {
+.tippy-box[data-theme~="starknet-explorer"][data-placement^="bottom"]
+  > .tippy-arrow::before {
   @apply border-b-brand;
 }
-.tippy-box[data-theme~="starknet-explorer"][data-placement^="left"] > .tippy-arrow::before {
+.tippy-box[data-theme~="starknet-explorer"][data-placement^="left"]
+  > .tippy-arrow::before {
   @apply border-l-brand;
 }
-.tippy-box[data-theme~="starknet-explorer"][data-placement^="right"] > .tippy-arrow::before {
+.tippy-box[data-theme~="starknet-explorer"][data-placement^="right"]
+  > .tippy-arrow::before {
   @apply border-r-brand;
 }

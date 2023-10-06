@@ -14,7 +14,7 @@ module.exports = {
         mono: "'IBM Plex Mono', monospace",
       },
       colors: {
-        brand: "#AE2EFF",
+        brand: "#f7931a",
         container: "#1A1A24",
         "se-black": "#111118",
         "se-green": "#88ff00",
@@ -23,11 +23,12 @@ module.exports = {
         "se-red": "#FF4E4E",
         "se-orange": "#FF864E",
         "se-cash-green": "#00E11F",
-        "se-link": "#BD56FF",
-        "se-hover-link": "#D38EFF",
+        "se-link": "#f7931a",
+        "se-hover-link": "#FDC67F",
         "se-inner-border": "#3f3f75",
         "se-inner-bg": "#1e1e2b",
         "se-list-border": "#30304a",
+        bitcoin: '#f7931a'
       },
     },
   },

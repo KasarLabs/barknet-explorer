@@ -199,7 +199,7 @@ let fees = {
     type: "datetime",
     categories: ["01 Jan", "02 Jan", "03 Jan", "04 Jan", "05 Jan", "06 Jan", "07 Jan", "08 Jan", "09 Jan", "10 Jan", "11 Jan", "12 Jan"],
   },
-  colors: ["#b43cff"],
+  colors: ["#f7931a"],
   title: {
     text: "33.83653 ETH",
     offsetX: 20,
@@ -252,7 +252,7 @@ let tvl = {
     type: "datetime",
     categories: ["01 Jan", "02 Jan", "03 Jan", "04 Jan", "05 Jan", "06 Jan", "07 Jan", "08 Jan", "09 Jan", "10 Jan", "11 Jan", "12 Jan"],
   },
-  colors: ["#b43cff"],
+  colors: ["#f7931a"],
   title: {
     text: "$ 57,920,345",
     offsetX: 20,

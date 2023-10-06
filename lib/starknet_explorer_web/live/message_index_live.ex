@@ -46,11 +46,11 @@ defmodule StarknetExplorerWeb.MessageIndexLive do
               <div class="list-h">Direction</div>
               <%= if Message.is_l2_to_l1(message.type) do %>
                 <div>
-                  <span class="info-label green-label">L2</span>→<span class="info-label blue-label">L1</span>
+                  <span class="info-label green-label">L2</span>→<span class="info-label orange-label">L1</span>
                 </div>
               <% else %>
                 <div>
-                  <span class="info-label blue-label">L1</span>→<span class="info-label green-label">L2</span>
+                  <span class="info-label orange-label">L1</span>→<span class="info-label green-label">L2</span>
                 </div>
               <% end %>
             </div>
