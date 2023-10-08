@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <!-- Favicon -->
-    <link rel="icon" type="image/png" sizes="32x32" href={~p"/images/favicon-32x32.png"} />
-    <link rel="icon" type="image/png" sizes="16x16" href={~p"/images/favicon-16x16.png"} />
+    <link rel="icon" type="image/png" sizes="32x32" href={~p"/images/favicon.ico"} />
+    <link rel="icon" type="image/png" sizes="16x16" href={~p"/images/favicon.ico"} />
     <!-- Primary Meta Tags -->
     <title>Barkscan</title>
     <meta name="title" content="Barkscan" />
@@ -33,7 +33,7 @@
     <header class="z-50 absolute top-0 left-0">
       <nav class="w-screen flex items-center justify-between p-5 lg:px-16">
         <a href={Utils.network_path(@conn.assigns.network)} } class="z-50 text-xl">
-          <img src={~p"/images/barkscan.png"} class="h-9 xl:h-11" />
+          <img src={~p"/images/barkscan_white.png"} class="h-9 xl:h-11" />
         </a>
         <img id="hamburger" class="z-50 lg:hidden" phx-hook="Nav" src={~p"/images/menu.svg"} />
         <div
@@ -120,7 +120,7 @@
     </header>
     <%= @inner_content %>
     <footer class="absolute bottom-0 left-0 right-0 flex justify-center items-center mt-10 py-4 text-gray-500">
-      <p>Made by LambdaClass</p>
+      <p>Made by LambdaClass </p>
     </footer>
     <!-- Development -->
     <script src="https://unpkg.com/@popperjs/core@2/dist/umd/popper.min.js">
