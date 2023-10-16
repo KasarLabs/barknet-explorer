@@ -1,3 +1,5 @@
+INDEXCOPY
+
 defmodule StarknetExplorerWeb.HomeLive.Index do
   alias StarknetExplorerWeb.Component.TransactionsPerSecond, as: TPSComponent
   alias StarknetExplorerWeb.CoreComponents
@@ -10,18 +12,18 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
   def mount(_params, _session, socket) do
     socket = load_blocks(socket)
 
-    {:ok, socket}
+    {:ok,
+     put_flash(
+       socket,
+       :info,
+       ""
+     )}
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <%= live_render(@socket, StarknetExplorerWeb.SearchLive,
-      id: "search-bar",
-      flash: @flash,
-      session: %{"network" => @network}
-    ) %>
-    <div class="flex flex-col gap-1 justify-center items-center my-16">
+    <div class="flex flex-col gap-1 justify-center items-center mt-2 mb-12">
       <h1>Barkscan</h1>
       <div class="uppercase rounded-lg px-2 py-1 text-center orange-label text-xl font-medium mt-2">
         Explore Bitcoin's future
@@ -29,10 +31,12 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
     </div>
     <div class="mx-auto max-w-7xl mt-4 mb-5">
       <div class="flex justify-between">
-        <div class="relative inline-flex items-start gap-3 bg-container p-3 pr-4 text-sm mb-6 ">
-          <div class="text-bitcoin">
-            <img src={~p"/images/zap.svg"} class="my-auto" />
-          </div>
+        <div class="relative inline-flex items-start gap-3 bg-container p-3 pr-4 text-sm mb-6 rounded-lg overflow-hidden">
+          <img
+            alt="Lightning that represents the TPS of the network"
+            src={~p"/images/zap.svg"}
+            class="my-auto text-bitcoin"
+          />
           <div class="flex">
             <div class="flex items-center gap-2 border-r border-r-gray-700 pr-2 mr-2">
               TPS
@@ -53,21 +57,24 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
         <div>
           <a href="https://github.com/KasarLabs/barkscan">
             <div class="inline-flex items-start gap-3 bg-container hover:bg-[#272737] transition-all duration-300 p-3 pr-4 text-sm mb-6">
-              <img src={~p"/images/github.svg"} class="my-auto" />
+              <img alt="GitHub logo" src={~p"/images/github.svg"} class="my-auto" />
             </div>
           </a>
           <a href="https://twitter.com/KasarLabs">
             <div class="inline-flex items-start gap-3 bg-container hover:bg-[#272737] transition-all duration-300 p-3 pr-4 text-sm mb-6">
-              <img src={~p"/images/twitter.svg"} class="my-auto" />
+              <img alt="Twitter/X logo" src={~p"/images/twitter.svg"} class="my-auto" />
             </div>
           </a>
         </div>
       </div>
       <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <a href={Utils.network_path(@network, "blocks")} class="bg-container text-gray-100">
+        <a
+          href={Utils.network_path(@network, "blocks")}
+          class="bg-container text-gray-100 rounded-lg overflow-hidden"
+        >
           <div class="relative bg-container">
             <div class="flex items-start gap-6 my-4 mx-8">
-              <img src={~p"/images/box.svg"} class="my-auto w-6 h-auto" />
+              <img alt="Blocks logo" src={~p"/images/box.svg"} class="my-auto w-6 h-auto" />
               <div>
                 <div class="text-sm text-gray-400">Blocks Height</div>
                 <div class="text-2xl mt-1"><%= assigns.block_height %></div>
@@ -75,14 +82,21 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
             </div>
             <div class="flex justify-between border-t border-t-gray-700 py-3 px-8">
               <div class="text-sm">View all blocks</div>
-              <img src={~p"/images/arrow-right.svg"} />
+              <img alt="Arrow right" src={~p"/images/arrow-right.svg"} />
             </div>
           </div>
         </a>
-        <a href={Utils.network_path(@network, "messages")} class="bg-container text-gray-100">
+        <a
+          href={Utils.network_path(@network, "messages")}
+          class="bg-container text-gray-100 rounded-lg overflow-hidden"
+        >
           <div class="reative bg-container">
             <div class="flex items-start gap-6 my-4 mx-8">
-              <img src={~p"/images/message-square.svg"} class="my-auto w-6 h-auto" />
+              <img
+                alt="Messages logo"
+                src={~p"/images/message-square.svg"}
+                class="my-auto w-6 h-auto"
+              />
               <div>
                 <div class="text-sm text-gray-400">Messages</div>
                 <div class="text-2xl mt-1"><%= @entities_count.messages_count %></div>
@@ -90,14 +104,17 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
             </div>
             <div class="flex justify-between border-t border-t-gray-700 py-3 px-8">
               <div class="text-sm">View all messages</div>
-              <img src={~p"/images/arrow-right.svg"} />
+              <img alt="Right arrow" src={~p"/images/arrow-right.svg"} />
             </div>
           </div>
         </a>
-        <a href={Utils.network_path(@network, "events")} class="bg-container text-gray-100">
+        <a
+          href={Utils.network_path(@network, "events")}
+          class="bg-container text-gray-100 rounded-lg overflow-hidden"
+        >
           <div class="reative bg-container">
             <div class="flex items-start gap-6 my-4 mx-8">
-              <img src={~p"/images/calendar.svg"} class="my-auto w-6 h-auto" />
+              <img alt="Events logo" src={~p"/images/calendar.svg"} class="my-auto w-6 h-auto" />
               <div>
                 <div class="text-sm text-gray-400">Events</div>
                 <div class="text-2xl mt-1"><%= @entities_count.events_count %></div>
@@ -105,14 +122,21 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
             </div>
             <div class="flex justify-between border-t border-t-gray-700 py-3 px-8">
               <div class="text-sm">View all events</div>
-              <img src={~p"/images/arrow-right.svg"} />
+              <img alt="Right arrow" src={~p"/images/arrow-right.svg"} />
             </div>
           </div>
         </a>
-        <a href={Utils.network_path(@network, "transactions")} class="bg-container text-gray-100">
+        <a
+          href={Utils.network_path(@network, "transactions")}
+          class="bg-container text-gray-100 rounded-lg overflow-hidden"
+        >
           <div class="reative bg-container">
             <div class="flex items-start gap-6 my-4 mx-8">
-              <img src={~p"/images/corner-up-right.svg"} class="my-auto w-6 h-auto" />
+              <img
+                alt="Transactions logo"
+                src={~p"/images/corner-up-right.svg"}
+                class="my-auto w-6 h-auto"
+              />
               <div>
                 <div class="text-sm text-gray-400">Transactions</div>
                 <div class="text-2xl mt-1"><%= @entities_count.transaction_count %></div>
@@ -120,15 +144,10 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
             </div>
             <div class="flex justify-between border-t border-t-gray-700 py-3 px-8">
               <div class="text-sm">View all transactions</div>
-              <img src={~p"/images/arrow-right.svg"} />
+              <img alt="Right arrow" src={~p"/images/arrow-right.svg"} />
             </div>
           </div>
         </a>
-      </div>
-      <div class="text-gray-600 bg-gray-800/10 border-t border-t-gray-700 flex justify-center items-center py-4 px-4 text-sm mt-6">
-        <div>
-          *We are still syncing historical data so the above numbers might not reflect the current status
-        </div>
       </div>
     </div>
 
@@ -142,7 +161,7 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
           >
             <div class="flex gap-2 items-center">
               <div>View all blocks</div>
-              <img src={~p"/images/arrow-right.svg"} />
+              <img alt="Right arrow" src={~p"/images/arrow-right.svg"} />
             </div>
           </a>
         </div>
@@ -200,7 +219,7 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
           >
             <div class="flex gap-2 items-center">
               <div>View all transactions</div>
-              <img src={~p"/images/arrow-right.svg"} />
+              <img alt="Right arrow" src={~p"/images/arrow-right.svg"} />
             </div>
           </a>
         </div>

@@ -7,15 +7,16 @@ defmodule StarknetExplorerWeb.BlockIndexLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <%= live_render(@socket, StarknetExplorerWeb.SearchLive,
-      id: "search-bar",
-      flash: @flash,
-      session: %{"network" => @network}
-    ) %>
     <div class="max-w-7xl mx-auto">
       <div class="table-header">
         <h2>Blocks</h2>
-        <CoreComponents.pagination_links id="events" page={@page} prev="dec_events" next="inc_events" />
+        <CoreComponents.pagination_links
+          id="blocks-top-pagination"
+          page={@page}
+          prev="dec_events"
+          next="inc_events"
+          active_pagination_id={@active_pagination_id}
+        />
       </div>
       <div class="table-block">
         <div class="grid-6 table-th">
@@ -61,7 +62,15 @@ defmodule StarknetExplorerWeb.BlockIndexLive do
           </div>
         <% end %>
       </div>
-      <CoreComponents.pagination_links id="events" page={@page} prev="dec_events" next="inc_events" />
+      <div class="mt-2">
+        <CoreComponents.pagination_links
+          id="blocks-bottom-pagination"
+          page={@page}
+          prev="dec_events"
+          next="inc_events"
+          active_pagination_id={@active_pagination_id}
+        />
+      </div>
     </div>
     """
   end
@@ -70,7 +79,8 @@ defmodule StarknetExplorerWeb.BlockIndexLive do
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket,
-       page: Block.paginate_blocks(%{}, socket.assigns.network)
+       page: Block.paginate_blocks(%{}, socket.assigns.network),
+       active_pagination_id: ""
      )}
   end
 
@@ -91,6 +101,21 @@ defmodule StarknetExplorerWeb.BlockIndexLive do
   def handle_event("dec_events", _value, socket) do
     new_page_number = socket.assigns.page.page_number - 1
     pagination(socket, new_page_number)
+  end
+
+  @impl true
+  def handle_event(
+        "change-page",
+        %{"page-number-input" => page_number},
+        socket
+      ) do
+    new_page_number = String.to_integer(page_number)
+    pagination(socket, new_page_number)
+  end
+
+  def handle_event("toggle-page-edit", %{"target" => target}, socket) do
+    socket = assign(socket, active_pagination_id: target)
+    {:noreply, push_event(socket, "focus", %{id: target})}
   end
 
   def pagination(socket, new_page_number) do

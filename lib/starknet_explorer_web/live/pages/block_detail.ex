@@ -4,11 +4,9 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
   alias StarknetExplorerWeb.CoreComponents
   alias StarknetExplorer.Data
   alias StarknetExplorerWeb.Utils
-  alias StarknetExplorer.BlockUtils
   alias StarknetExplorer.S3
   alias StarknetExplorer.Message
   alias StarknetExplorer.Transaction
-  alias StarknetExplorer.Gateway
   alias StarknetExplorer.Events
 
   defp num_or_hash(<<"0x", _rest::binary>>), do: :hash
@@ -92,33 +90,37 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
         <% end %>
       </div>
     </div>
-    <%= if @view != "loading" do %>
+    <div
+      id="dropdown"
+      class="dropdown relative bg-[#232331] p-5 mb-2 rounded-md lg:hidden"
+      phx-hook="Dropdown"
+    >
+      <span class="networkSelected capitalize"><%= assigns.view %></span>
+      <span class="absolute inset-y-0 right-5 transform translate-1/2 flex items-center">
+        <img
+          alt="Dropdown menu of block detail screens"
+          class="transform rotate-90 w-5 h-5"
+          src={~p"/images/dropdown.svg"}
+        />
+      </span>
+    </div>
+    <div class="options hidden">
       <div
-        id="dropdown"
-        class="dropdown relative bg-[#232331] p-5 mb-2 rounded-md lg:hidden"
-        phx-hook="Dropdown"
+        class={"option #{if assigns.view == "overview", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
+        phx-click="select-view"
+        ,
+        phx-value-view="overview"
       >
-        <span class="networkSelected capitalize"><%= assigns.view %></span>
-        <span class="absolute inset-y-0 right-5 transform translate-1/2 flex items-center">
-          <img class="transform rotate-90 w-5 h-5" src={~p"/images/dropdown.svg"} />
-        </span>
+        Overview
       </div>
-      <div class="options hidden">
-        <div
-          class={"option #{if assigns.view == "overview", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
-          phx-click="select-view"
-          ,
-          phx-value-view="overview"
-        >
-          Overview
-        </div>
+      <%= if @tabs? do %>
         <div
           class={"option #{if assigns.view == "transactions", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
           phx-click="select-view"
           ,
           phx-value-view="transactions"
         >
-          Transactions
+          Transactions (<%= @transactions_count %>)
         </div>
         <div
           class={"option #{if assigns.view == "messages", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
@@ -126,7 +128,7 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
           ,
           phx-value-view="messages"
         >
-          Message Logs
+          Message Logs (<%= @messages_count %>)
         </div>
         <div
           class={"option #{if assigns.view == "events", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
@@ -135,71 +137,183 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
           phx-value-view="events"
           ,
         >
-          Events
+          Events (<%= @events_count %>)
         </div>
-      </div>
-    <% end %>
+      <% end %>
+      <%= if !@tabs? do %>
+        <span>
+          <div class="option not-active lg:border-b-transparent text-gray-400" }>
+            Loading tabs...
+          </div>
+        </span>
+      <% end %>
+    </div>
     """
   end
 
   @impl true
   def mount(_params = %{"number_or_hash" => param}, _session, socket) do
-    assigns =
-      if connected?(socket) do
-        {:ok, block} =
-          case num_or_hash(param) do
+    {type, param} =
+      case num_or_hash(param) do
+        :hash ->
+          {:hash, param}
+
+        :num ->
+          {num, ""} = Integer.parse(param)
+          {:num, num}
+      end
+
+    {:ok, block} =
+      case :timer.tc(fn ->
+             Enum.find(
+               StarknetExplorer.IndexCache.latest_blocks(socket.assigns.network),
+               fn block ->
+                 block.number == param or block.hash == param
+               end
+             )
+           end) do
+        {time, block} = {_, %StarknetExplorer.Block{}} ->
+          Logger.debug(
+            "[Block Detail] Found block #{block.number} in cache in #{time} microseconds"
+          )
+
+          {:ok, block}
+
+        {time, _} ->
+          case type do
             :hash ->
-              Data.block_by_hash(param, socket.assigns.network, false)
+              {query_time, res} =
+                :timer.tc(fn -> Data.block_by_hash(param, socket.assigns.network, false) end)
+
+              Logger.debug(
+                "[Block Detail] Fetched block #{param} in #{query_time} microseconds, query took #{time} microseconds, using :hash"
+              )
+
+              res
 
             :num ->
-              {num, ""} = Integer.parse(param)
-              Data.block_by_number(num, socket.assigns.network, false)
+              {query_time, res} =
+                :timer.tc(fn -> Data.block_by_number(param, socket.assigns.network, false) end)
+
+              Logger.debug(
+                "[Block Detail] Fetched block #{param} in #{query_time} microseconds, query took #{time} microsecond, using :num"
+              )
+
+              res
           end
+      end
+
+    socket = assign(socket, :block, block)
+
+    extra_assings =
+      if connected?(socket) do
+        transactions = block_transactions(socket)
+
+        # note: most transactions receipt do not contain messages
+        l1_to_l2_messages =
+          transactions |> Enum.map(&Message.from_transaction/1) |> Enum.reject(&is_nil/1)
+
+        messages =
+          (transactions
+           |> Enum.map(fn tx -> tx.receipt end)
+           |> Enum.flat_map(&Message.from_transaction_receipt/1)) ++ l1_to_l2_messages
 
         [
-          gas_price: Utils.hex_wei_to_eth(block.gas_fee_in_wei),
-          execution_resources: block.execution_resources,
-          block: block,
-          view: "overview",
-          verification: "Pending",
-          enable_verification:
-            Application.get_env(:starknet_explorer, :enable_block_verification),
-          block_age: Utils.get_block_age(block)
+          transactions_count: length(transactions),
+          messages_count: length(messages),
+          events_count: Events.get_count_by_block(block.number, socket.assigns.network),
+          transactions: transactions,
+          messages: messages
         ]
       else
-        [
-          view: "loading",
-          enable_verification: Application.get_env(:starknet_explorer, :enable_block_verification)
-        ]
+        []
       end
+
+    assigns =
+      [
+        gas_price: Utils.hex_wei_to_eth(block.gas_fee_in_wei),
+        execution_resources: block.execution_resources,
+        block: block,
+        view: "overview",
+        verification: "Pending",
+        block_age: Utils.get_block_age(block),
+        tabs?: connected?(socket),
+        active_pagination_id: ""
+      ] ++ extra_assings
 
     {:ok, assign(socket, assigns)}
   end
 
   @impl true
-  def handle_info(:get_gateway_information, socket = %Phoenix.LiveView.Socket{}) do
-    {gas_assign, resources_assign} =
-      case Gateway.fetch_block(socket.assigns.block.number, socket.assigns.network) do
-        {:ok, block = %{"gas_price" => gas_price}} ->
-          execution_resources = BlockUtils.calculate_gateway_block_steps(block)
-          gas_price = Utils.hex_wei_to_eth(gas_price)
+  def handle_event("toggle-page-edit", %{"target" => target}, socket) do
+    socket = assign(socket, active_pagination_id: target)
+    {:noreply, push_event(socket, "focus", %{id: target})}
+  end
 
-          {gas_price, execution_resources}
+  @impl true
+  def handle_event(
+        "change-page",
+        %{"page-number-input" => page_number},
+        socket
+      ) do
+    assigns =
+      case socket.assigns.view do
+        "transactions" ->
+          filter = Map.get(socket.assigns, :tx_filter, "ALL")
 
-        {:ok, err} ->
-          Logger.error(err)
-          {"Unavailable", "Unavailable"}
+          page =
+            Transaction.paginate_txs_by_block_number(
+              %{page: page_number},
+              socket.assigns.block.number,
+              socket.assigns.network,
+              filter
+            )
 
-        {:error, _} ->
-          {"Unavailable", "Unavailable"}
+          [
+            page: page
+          ]
+
+        "events" ->
+          page =
+            Events.paginate_events(
+              %{page: page_number},
+              socket.assigns.block.number,
+              socket.assigns.network
+            )
+
+          [
+            page: page
+          ]
+
+        _ ->
+          []
       end
 
-    socket =
-      socket
-      |> assign(:gas_price, gas_assign)
-      |> assign(:execution_resources, resources_assign)
+    {:noreply, assign(socket, assigns)}
+  end
 
-    {:noreply, socket}
+  @impl true
+  def handle_event(
+        "select-filter",
+        %{"filter" => filter},
+        socket
+      ) do
+    page =
+      Transaction.paginate_txs_by_block_number(
+        %{page: 0},
+        socket.assigns.block.number,
+        socket.assigns.network,
+        filter
+      )
+
+    assigns = [
+      view: "transactions",
+      page: page,
+      receipts: block_transactions_receipt(socket),
+      tx_filter: filter
+    ]
+
+    {:noreply, assign(socket, assigns)}
   end
 
   @impl true
@@ -208,20 +322,8 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
         %{"view" => "messages"},
         socket
       ) do
-    transactions = block_transactions(socket)
-
-    # note: most transactions receipt do not contain messages
-    l1_to_l2_messages =
-      transactions |> Enum.map(&Message.from_transaction/1) |> Enum.reject(&is_nil/1)
-
-    messages =
-      (transactions
-       |> Enum.map(fn tx -> tx.receipt end)
-       |> Enum.flat_map(&Message.from_transaction_receipt/1)) ++ l1_to_l2_messages
-
     assigns = [
-      view: "messages",
-      messages: messages
+      view: "messages"
     ]
 
     {:noreply, assign(socket, assigns)}
@@ -233,17 +335,21 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
         %{"view" => "transactions"},
         socket
       ) do
+    filter = Map.get(socket.assigns, :tx_filter, "ALL")
+
     page =
       Transaction.paginate_txs_by_block_number(
         %{page: 0},
         socket.assigns.block.number,
-        socket.assigns.network
+        socket.assigns.network,
+        filter
       )
 
     assigns = [
       view: "transactions",
       page: page,
-      receipts: block_transactions_receipt(socket)
+      receipts: block_transactions_receipt(socket),
+      tx_filter: "ALL"
     ]
 
     {:noreply, assign(socket, assigns)}
@@ -377,14 +483,89 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <%= live_render(@socket, StarknetExplorerWeb.SearchLive,
-      id: "search-bar",
-      flash: @flash,
-      session: %{"network" => @network}
-    ) %>
     <div class="max-w-7xl mx-auto bg-container p-4 md:p-6 rounded-md">
       <%= block_detail_header(assigns) %>
+      <%= if @view == "transactions", do: render_tx_filter(assigns) %>
       <%= render_info(assigns) %>
+    </div>
+    """
+  end
+
+  def render_tx_filter(assigns) do
+    ~H"""
+    <div>
+      <div>
+        <div
+          id="dropdown"
+          class="dropdown relative bg-[#232331] p-5 mb-2 rounded-md lg:hidden"
+          phx-hook="Dropdown"
+        >
+          <span class="networkSelected capitalize"><%= assigns.tx_filter %></span>
+          <span class="absolute inset-y-0 right-5 transform translate-1/2 flex items-center">
+            <img
+              alt="Dropdown menu of transaction types"
+              class="transform rotate-90 w-5 h-5"
+              src={~p"/images/dropdown.svg"}
+            />
+          </span>
+        </div>
+        <div>
+          <div class="options hidden">
+            <div
+              class={"option #{if Map.get(assigns, :tx_filter) == "ALL", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
+              phx-click="select-filter"
+              ,
+              phx-value-filter="ALL"
+            >
+              All
+            </div>
+            <%= if @tabs? do %>
+              <div
+                class={"option #{if Map.get(assigns, :tx_filter) == "INVOKE", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
+                phx-click="select-filter"
+                ,
+                phx-value-filter="INVOKE"
+              >
+                Invoke
+              </div>
+              <div
+                class={"option #{if Map.get(assigns, :tx_filter) == "DEPLOY_ACCOUNT", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
+                phx-click="select-filter"
+                ,
+                phx-value-filter="DEPLOY_ACCOUNT"
+              >
+                Deploy Account
+              </div>
+              <div
+                class={"option #{if Map.get(assigns, :tx_filter) == "DEPLOY", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
+                phx-click="select-filter"
+                ,
+                phx-value-filter="DEPLOY"
+              >
+                Deploy
+              </div>
+              <div
+                class={"option #{if Map.get(assigns, :tx_filter) == "DECLARE", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
+                phx-click="select-filter"
+                ,
+                phx-value-filter="DECLARE"
+                ,
+              >
+                Declare
+              </div>
+            <% end %>
+            <div
+              class={"option #{if Map.get(assigns, :tx_filter) == "L1_HANDLER", do: "lg:!border-b-se-blue text-white", else: "lg:border-b-transparent text-gray-400"}"}
+              phx-click="select-filter"
+              ,
+              phx-value-filter="L1_HANDLER"
+              ,
+            >
+              L1 Handler
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     """
   end
@@ -442,11 +623,13 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
               <div class="absolute top-1/2 -right-6 tranform -translate-y-1/2">
                 <div class="relative">
                   <img
+                    alt="Copy button logo"
                     class="copy-btn copy-text w-4 h-4"
                     src={~p"/images/copy.svg"}
                     data-text={sender_address || "-"}
                   />
                   <img
+                    alt="Copied checkmark logo"
                     class="copy-check absolute top-0 left-0 w-4 h-4 opacity-0 pointer-events-none"
                     src={~p"/images/check-square.svg"}
                   />
@@ -461,7 +644,15 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
         </div>
       </div>
     <% end %>
-    <CoreComponents.pagination_links id="txs" page={@page} prev="dec_txs" next="inc_txs" />
+    <div class="mt-2">
+      <CoreComponents.pagination_links
+        id="txs"
+        page={@page}
+        prev="dec_txs"
+        next="inc_txs"
+        active_pagination_id={@active_pagination_id}
+      />
+    </div>
     """
   end
 
@@ -549,11 +740,13 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
                 <div class="absolute top-1/2 -right-6 tranform -translate-y-1/2">
                   <div class="relative">
                     <img
+                      alt="Copy button logo"
                       class="copy-btn copy-text w-4 h-4"
                       src={~p"/images/copy.svg"}
                       data-text={message.transaction_hash}
                     />
                     <img
+                      alt="Copied checkmark logo"
                       class="copy-check absolute top-0 left-0 w-4 h-4 opacity-0 pointer-events-none"
                       src={~p"/images/check-square.svg"}
                     />
@@ -568,131 +761,14 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
     """
   end
 
-  def render_info(assigns = %{view: "loading"}) do
+  def render_info(assigns = %{block: _block, view: "overview"}) do
     ~H"""
-    <%= if @enable_verification do %>
-      <div class="grid-4 custom-list-item">
-        <div class="block-label">
-          Local Verification
-        </div>
-        <div class="col-span-3">
-          <div class="flex flex-col lg:flex-row items-start lg:items-center gap-2">
-            <span
-              id="block_verifier"
-              class={"#{if @verification == "Pending", do: "orange-label"} #{if @verification == "Verified", do: "green-label"} #{if @verification == "Failed", do: "pink-label"}"}
-              data-hash={@block.hash}
-              phx-hook="BlockVerifier"
-            >
-              <%= @verification %>
-            </span>
-          </div>
-        </div>
-      </div>
-    <% end %>
     <div class="grid-4 custom-list-item">
       <div class="block-label">Block Number</div>
       <div class="type">
-        Loading
-      </div>
-    </div>
-    <div class="grid-4 custom-list-item">
-      <div class="block-label">Block Hash</div>
-      <div class="block-data col-span-3">
-        <div class="hash flex">
-          Loading
-        </div>
-      </div>
-    </div>
-    <div class="grid-4 custom-list-item">
-      <div class="block-label">Block Status</div>
-      <div class="col-span-3">
-        <span class="info-label">
-          Loading
-        </span>
-      </div>
-    </div>
-    <div class="grid-4 custom-list-item">
-      <div class="block-label">State Root</div>
-      <div class="block-data col-span-3">
-        <div class="hash flex">
-          Loading
-        </div>
-      </div>
-    </div>
-    <div class="grid-4 custom-list-item">
-      <div class="block-label">Parent Hash</div>
-      <div class="block-data col-span-3">
-        <div class="hash flex">
-          Loading
-        </div>
-      </div>
-    </div>
-    <div class="grid-4 custom-list-item">
-      <div class="block-label">
-        Sequencer Address
-      </div>
-      <div class="block-data col-span-3">
-        <div class="hash flex">
-          Loading
-        </div>
-      </div>
-    </div>
-    <%= if Application.get_env(:starknet_explorer, :enable_gateway_data) do %>
-      <div class="grid-4 custom-list-item">
-        <div class="block-label">
-          Gas Price
-        </div>
-        <div class="col-span-3">
-          <div class="flex flex-col lg:flex-row items-start lg:items-center gap-2">
-            <div
-              class="break-all bg-se-cash-green/10 text-se-cash-green rounded-full px-4 py-1"
-              phx-update="replace"
-              id="gas-price"
-            >
-              Loading
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="grid-4 custom-list-item">
-        <div class="block-label">
-          Total execution resources
-        </div>
-        <div class="col-span-3">
-          <div class="flex flex-col lg:flex-row items-start lg:items-center gap-2">
-            Loading
-          </div>
-        </div>
-      </div>
-    <% end %>
-    """
-  end
-
-  def render_info(assigns = %{block: _block, view: "overview", enable_verification: _}) do
-    ~H"""
-    <%= if @enable_verification do %>
-      <div class="grid-4 custom-list-item">
-        <div class="block-label">
-          Local Verification
-        </div>
-        <div class="col-span-3">
-          <div class="flex flex-col lg:flex-row items-start lg:items-center gap-2">
-            <span
-              id="block_verifier"
-              class={"#{if @verification == "Pending", do: "orange-label"} #{if @verification == "Verified", do: "green-label"} #{if @verification == "Failed", do: "pink-label"}"}
-              data-hash={@block.hash}
-              phx-hook="BlockVerifier"
-            >
-              <%= @verification %>
-            </span>
-          </div>
-        </div>
-      </div>
-    <% end %>
-    <div class="grid-4 custom-list-item">
-      <div class="block-label">Block Number</div>
-      <div class="type">
-        <%= @block.number %>
+        <a href={Utils.network_path(@network, "blocks/#{@block.hash}")} class="text-hover-link">
+          <%= @block.number %>
+        </a>
       </div>
     </div>
     <div class="grid-4 custom-list-item">
@@ -843,7 +919,13 @@ defmodule StarknetExplorerWeb.BlockDetailLive do
         </div>
       </div>
     <% end %>
-    <CoreComponents.pagination_links id="events" page={@page} prev="dec_events" next="inc_events" />
+    <CoreComponents.pagination_links
+      id="events"
+      page={@page}
+      prev="dec_events"
+      next="inc_events"
+      active_pagination_id={@active_pagination_id}
+    />
     """
   end
 
