@@ -22,7 +22,7 @@ defmodule StarknetExplorerWeb.TransactionLive do
     >
       <span class="networkSelected capitalize"><%= assigns.transaction_view %></span>
       <span class="absolute inset-y-0 right-5 transform translate-1/2 flex items-center">
-        <img class="transform rotate-90 w-5 h-5" src={~p"/images/dropdown.svg"} />
+        <img alt="Dropdown menu" class="transform rotate-90 w-5 h-5" src={~p"/images/dropdown.svg"} />
       </span>
     </div>
     <div class="options hidden">
@@ -56,7 +56,7 @@ defmodule StarknetExplorerWeb.TransactionLive do
           ( <%= @messages_count %> )
         <% end %>
       </div>
-      <%= if @internal_calls != nil do %>
+      <%= if @internal_calls != nil  and @transaction_receipt.execution_status != "REVERTED" do %>
         <div
           class={"option #{if assigns.transaction_view == "internal_calls", do: "lg:!border-b-se-blue text-white", else: "text-gray-400 lg:border-b-transparent"}"}
           phx-click="select-view"
@@ -73,11 +73,6 @@ defmodule StarknetExplorerWeb.TransactionLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <%= live_render(@socket, StarknetExplorerWeb.SearchLive,
-      id: "search-bar",
-      flash: @flash,
-      session: %{"network" => @network}
-    ) %>
     <div class="max-w-7xl mx-auto bg-container p-4 md:p-6 rounded-md">
       <%= if @render_header do %>
         <%= transaction_header(assigns) %>
@@ -264,8 +259,13 @@ defmodule StarknetExplorerWeb.TransactionLive do
           <div>
             <div class="list-h">Transaction Hash</div>
             <div class="hash flex">
-              <%= @transaction.hash
-              |> Utils.shorten_block_hash() %>
+              <a
+                href={Utils.network_path(@network, "transactions/#{@transaction.hash}")}
+                class="text-hover-link"
+              >
+                <%= @transaction.hash
+                |> Utils.shorten_block_hash() %>
+              </a>
               <CoreComponents.copy_button text={@transaction.hash} />
             </div>
           </div>
@@ -410,27 +410,26 @@ defmodule StarknetExplorerWeb.TransactionLive do
                 <div class="inner-block custom-list !p-0">
                   <div
                     id={"#{input.call.name}"}
-                    class="w-full bg-black/20 p-5 !flex justify-between"
+                    class="w-full bg-black/20 p-5 !flex items-start justify-between hover:bg-black/10"
                     phx-hook="ShowTableData"
                   >
-                    <div phx-no-format><span class="flex">
-                  <span>
-                    <span>call</span>
-                    <span class="text-se-pink ml-1"><%= input.call.name %></span>
-                    (<.intersperse
-                      :let={arg}
-                      enum={input.call.args}
-                    ><:separator><span class="mr-2">,</span></:separator><span class="text-blue-400"><%= arg.name %></span></.intersperse>)
-                    <span class="text-blue-400 mx-1">-></span> <%= Utils.shorten_block_hash(input.selector) %>
-                  </span>
-                  <CoreComponents.copy_button text={input.selector} /></span>
-                </div>
-                    <img
-                      class="arrow-button transform rotate-180 transition-all duration-500"
-                      src={~p"/images/arrow-up.svg"}
-                    />
+                    <div class="flex items-center gap-0.5 flex-wrap">
+                      <span>call</span>
+                      <span class="text-se-pink ml-1"><%= input.call.name %></span>
+                      (<.intersperse :let={arg} enum={input.call.args}>
+                        <:separator><span class="mr-2">,</span></:separator>
+                        <span class="text-blue-400"><%= arg.name %></span>
+                      </.intersperse>) <span class="text-blue-400 mx-1">-></span>
+                      <div class="hash">
+                        <%= input.selector %>
+                        <CoreComponents.copy_button text={input.selector} />
+                      </div>
+                    </div>
+                    <div class="arrow-button transition-all duration-200 shrink-0">
+                      <img alt="Chevron" class="transform -rotate-90" src={~p"/images/chevron.svg"} />
+                    </div>
                   </div>
-                  <div class="hidden w-full bg-[#1e1e2b]/25 p-5">
+                  <div class="w-full bg-[#1e1e2b]/25 p-5">
                     <%= for arg <- input.call.args do %>
                       <div class="custom-list-item">
                         <div class="pb-5">
@@ -447,7 +446,10 @@ defmodule StarknetExplorerWeb.TransactionLive do
                         </div>
                         <div class="col-span-2 pb-5">
                           <div class="list-h">Value</div>
-                          <pre><%= Utils.format_arg_value(arg) %></pre>
+                          <div class="hash flex">
+                            <%= Utils.format_arg_value(arg) %>
+                            <CoreComponents.copy_button text={Utils.format_arg_value(arg)} />
+                          </div>
                         </div>
                       </div>
                     <% end %>
@@ -456,7 +458,7 @@ defmodule StarknetExplorerWeb.TransactionLive do
               <% else %>
                 <div class="w-full bg-black/20 p-5 mt-5">
                   Not Supported <span class="text-se-pink">...</span>(...)
-                  <span class="text-blue-400">-></span> <%= Utils.shorten_block_hash(input.selector) %>
+                  <span class="text-blue-400">-></span> <%= input.selector %>
                 </div>
               <% end %>
             <% end %>
@@ -647,13 +649,21 @@ defmodule StarknetExplorerWeb.TransactionLive do
     execution_resources =
       case Application.get_env(:starknet_explorer, :enable_gateway_data) do
         true ->
-          {:ok, receipt} =
-            Gateway.get_transaction_receipt(
-              socket.assigns.transaction_hash,
-              socket.assigns.network
-            )
+          case Gateway.get_transaction_receipt(
+                 socket.assigns.transaction_hash,
+                 socket.assigns.network
+               ) do
+            {:ok, %{"execution_resources" => execution_resources} = _receipt} ->
+              execution_resources
 
-          receipt["execution_resources"]
+            {:ok, _} ->
+              # This means that the transactions is reverted
+              %{
+                "builtin_instance_counter" => %{},
+                "n_memory_holes" => "-",
+                "n_steps" => "-"
+              }
+          end
 
         false ->
           %{

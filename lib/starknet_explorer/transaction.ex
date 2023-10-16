@@ -125,10 +125,20 @@ defmodule StarknetExplorer.Transaction do
     Repo.one(query)
   end
 
-  def paginate_txs_by_block_number(params, block_number, network) do
+  def paginate_txs_by_block_number(params, block_number, network, tx_type \\ "ALL")
+
+  def paginate_txs_by_block_number(params, block_number, network, "ALL") do
     Transaction
     |> where([p], p.block_number == ^block_number and p.network == ^network)
-    # |> Repo.preload(:receipt)
+    |> Repo.paginate(params)
+  end
+
+  def paginate_txs_by_block_number(params, block_number, network, tx_type) do
+    Transaction
+    |> where(
+      [p],
+      p.block_number == ^block_number and p.network == ^network and p.type == ^tx_type
+    )
     |> Repo.paginate(params)
   end
 
@@ -164,10 +174,47 @@ defmodule StarknetExplorer.Transaction do
     end
   end
 
-  def paginate_transactions_for_index(params, network) do
+  def get_by_partial_hash(hash) do
+    query =
+      from tx in Transaction,
+        where: tx.hash == ^hash,
+        limit: 25
+
+    Repo.one(query)
+  end
+
+  def paginate_transactions(params, network) do
+    Transaction
+    |> where([tx], tx.network == ^network)
+    |> preload(:block)
+    |> order_by(desc: :block_number)
+    |> Repo.paginate(params)
+  end
+
+  def paginate_transactions_for_index(params, network, filter \\ "ALL")
+
+  def paginate_transactions_for_index(params, network, "ALL") do
     query =
       from t in Transaction,
         where: t.network == ^network,
+        join: b in Block,
+        on: t.block_number == b.number and t.network == b.network,
+        select: %{hash: t.hash, type: t.type, timestamp: b.timestamp, status: b.status},
+        order_by: [desc: b.timestamp]
+
+    total_rows =
+      case StarknetExplorer.Counts.get(network) do
+        nil -> get_total_count(network)
+        entities_count -> entities_count.transactions
+      end
+
+    query |> Repo.paginate(Map.put(params, :options, %{total_entries: total_rows}))
+  end
+
+  def paginate_transactions_for_index(params, network, filter) do
+    query =
+      from t in Transaction,
+        where: t.network == ^network and t.type == ^filter,
         join: b in Block,
         on: t.block_number == b.number and t.network == b.network,
         select: %{hash: t.hash, type: t.type, timestamp: b.timestamp, status: b.status},

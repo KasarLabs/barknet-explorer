@@ -143,7 +143,7 @@ defmodule StarknetExplorerWeb.CoreComponents do
 
   def flash_group(assigns) do
     ~H"""
-    <.flash kind={:info} title="Success!" flash={@flash} />
+    <.flash kind={:info} title="Hello!" flash={@flash} />
     <.flash kind={:error} title="Error!" flash={@flash} />
     <.flash
       id="client-error"
@@ -369,7 +369,8 @@ defmodule StarknetExplorerWeb.CoreComponents do
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
         class={[
-          "mt-2 block w-full rounded-lg text-zinc-900 focus:ring-0 sm:text-sm sm:leading-6",
+          "#{@rest[:class]}",
+          " block w-full rounded-lg text-zinc-900 focus:ring-0 sm:text-sm sm:leading-6",
           "phx-no-feedback:border-zinc-300 phx-no-feedback:focus:border-zinc-400",
           @errors == [] && "border-zinc-300 focus:border-zinc-400",
           @errors != [] && "border-rose-400 focus:border-rose-400"
@@ -665,21 +666,51 @@ defmodule StarknetExplorerWeb.CoreComponents do
 
   def pagination_links(assigns) do
     ~H"""
-    <div class="flex justify-end items-center my-5 text-base">
+    <div class="flex justify-end items-center text-base">
       <button
         class={if @page.page_number == 1, do: "opacity-0 pointer-events-none", else: ""}
         id={@id}
         phx-hook="ScrollToTop"
         phx-click={@prev}
       >
-        <img class="transform rotate-180" src="/images/chevron.svg" />
+        <img
+          alt="Arrow to go to the next page"
+          class="transform rotate-180"
+          src="/images/chevron.svg"
+        />
       </button>
-      <div class="text-brand px-3 py-1 rounded-lg">
-        <%= @page.page_number %> / <%= @page.total_pages %>
+      <div class="flex items-center text-brand px-3 py-1 rounded-lg">
+        <div
+          class={"page-number #{if @active_pagination_id == "page-number-input-#{@id}", do: 'hidden', else: ''}"}
+          phx-click="toggle-page-edit"
+          phx-value-target={"page-number-input-#{@id}"}
+        >
+          <%= @page.page_number %>
+        </div>
+        <form
+          class={"#{if @active_pagination_id == "page-number-input-#{@id}", do: '', else: 'hidden'}"}
+          phx-submit="change-page"
+        >
+          <div class="relative z-20">
+            <.input
+              type="number"
+              name="page-number-input"
+              value={nil}
+              id={"page-number-input-#{@id}"}
+              class="page-number"
+              placeholder={@page.page_number}
+              phx-blur="toggle-page-edit"
+              phx-value-target=""
+            />
+          </div>
+        </form>
+        <div class="shrink-0">
+          / <%= @page.total_pages %>
+        </div>
       </div>
       <%= if @page.page_number != @page.total_pages do %>
-        <button id={@id} phx-hook="ScrollToTop" phx-click={@next}>
-          <img src="/images/chevron.svg" />
+        <button id={"scroll-#{@id}"} phx-hook="ScrollToTop" phx-click={@next}>
+          <img alt="Arrow to go to the previous page" src="/images/chevron.svg" />
         </button>
       <% end %>
     </div>
@@ -691,8 +722,14 @@ defmodule StarknetExplorerWeb.CoreComponents do
     <div class="copy-container shrink-0" id={Ecto.UUID.generate()} phx-hook="Copy">
       <div class="relative">
         <div class="ml-2 relative shrink-0">
-          <img class="copy-btn copy-text w-5 h-5" src="/images/copy.svg" data-text={@text} />
           <img
+            alt="Copy to clipboard"
+            class="copy-btn copy-text w-5 h-5"
+            src="/images/copy.svg"
+            data-text={@text}
+          />
+          <img
+            alt="Copied to clipboard"
             class="copy-check absolute top-0 left-0 w-5 h-5 opacity-0 pointer-events-none"
             src="/images/check-square.svg"
           />
@@ -705,6 +742,7 @@ defmodule StarknetExplorerWeb.CoreComponents do
   def tooltip(assigns) do
     ~H"""
     <img
+      alt="Help"
       id={@id}
       phx-hook="Tooltip"
       data-tip={@text}
