@@ -16,7 +16,7 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
      put_flash(
        socket,
        :info,
-       "We are currently working to support Contracts and Classes, stay tuned to our Twitter for updates."
+       ""
      )}
   end
 
@@ -268,41 +268,6 @@ defmodule StarknetExplorerWeb.HomeLive.Index do
               </div>
             </div>
           <% end %>
-        </div>
-      </div>
-    </div>
-
-    <div class="mx-auto max-w-7xl mt-16">
-      <div class="table-title">Related projects</div>
-      <div class="mx-auto max-w-7xl grid lg:grid-cols-3 gap-5 lg:gap-7 mt-6 lg:mt-4">
-        <div class="pt-5 pb-6 px-6 text-white rounded-lg transition bg-container hover:bg-se-inner-bg border border-dashed border-se-inner-border">
-          <div class="subtitle">
-            Read our blog
-          </div>
-          <div>
-            <a href="https://blog.lambdaclass.com">https://blog.lambdaclass.com</a>
-          </div>
-        </div>
-        <div class="pt-5 pb-6 px-6 text-white rounded-lg transition bg-container hover:bg-se-inner-bg border border-dashed border-se-inner-border">
-          <div class="subtitle">
-            YAS
-          </div>
-          <div>
-            YAS is Yet Another Swap on Starknet but bringing the best prices and yield to Degens.
-          </div>
-          <div>
-            <a class="inline-block mt-3" href="https://www.yetanotherswap.com">
-              https://www.yetanotherswap.com
-            </a>
-          </div>
-        </div>
-        <div class="pt-5 pb-6 px-6 text-white rounded-lg transition bg-container hover:bg-se-inner-bg border border-dashed border-se-inner-border">
-          <div class="subtitle">
-            Follow LambdaStarknet on twitter
-          </div>
-          <a href="https://twitter.com/LambdaStarknet">
-            https://twitter.com/LambdaStarknet
-          </a>
         </div>
       </div>
     </div>
